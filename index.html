@@ -1,0 +1,3455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Plexus · Drug Confirmation & First Aid</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+    </script>
+
+    <style>
+        /* ============================================================
+           1.  CSS VARIABLES
+           ============================================================ */
+        :root {
+            --primary: #7A0E0E;
+            --primary-light: #9E2B2B;
+            --primary-dark: #4F0808;
+            --primary-gradient: linear-gradient(135deg, #7A0E0E, #9E2B2B);
+            --accent: #D4AF37;
+            --bg-body: #EDEEF2;
+            --surface: #FFFFFF;
+            --surface-glass: rgba(255, 255, 255, 0.75);
+            --surface-glass-border: rgba(255, 255, 255, 0.5);
+            --text-primary: #111118;
+            --text-secondary: #5B5B6B;
+            --text-muted: #8E8E9A;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.07);
+            --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.10);
+            --radius-full: 60px;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* ============================================================
+           2.  RESET & BASE
+           ============================================================ */
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            font-family: var(--font);
+            background: var(--bg-body);
+            color: var(--text-primary);
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            user-select: none;
+        }
+
+        /* ============================================================
+           3.  LOADING SCREEN
+           ============================================================ */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: linear-gradient(145deg, #120303, var(--primary-dark));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.9s cubic-bezier(0.23, 1, 0.32, 1),
+                transform 0.9s cubic-bezier(0.23, 1, 0.32, 1);
+            will-change: transform, opacity;
+            overflow: hidden;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            transform: scale(1.05);
+            pointer-events: none;
+        }
+
+        #loading-screen::before {
+            content: '';
+            position: absolute;
+            inset: -50%;
+            background: conic-gradient(from 0deg, transparent, rgba(212, 175, 55, 0.06), transparent 60%);
+            animation: spinGradient 10s linear infinite;
+        }
+
+        @keyframes spinGradient {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        #wing-canvas {
+            width: 200px;
+            height: 200px;
+            max-width: 45vw;
+            max-height: 45vw;
+            display: block;
+            margin-bottom: 28px;
+            filter: drop-shadow(0 16px 48px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 80px rgba(122, 14, 14, 0.15));
+            animation: floatWing 3.5s ease-in-out infinite;
+            position: relative;
+            z-index: 2;
+        }
+
+        @keyframes floatWing {
+            0%,
+            100% {
+                transform: translateY(0px) scale(1);
+            }
+            50% {
+                transform: translateY(-12px) scale(1.02);
+            }
+        }
+
+        .loading-title {
+            font-size: clamp(2.6rem, 10vw, 4.2rem);
+            font-weight: 300;
+            letter-spacing: 12px;
+            color: #FFFFFF;
+            text-transform: uppercase;
+            font-family: var(--font);
+            z-index: 2;
+            animation: pulseText 2.5s ease-in-out infinite;
+            text-shadow: 0 0 60px rgba(212, 175, 55, 0.1);
+        }
+
+        @keyframes pulseText {
+            0%,
+            100% {
+                opacity: 0.9;
+                letter-spacing: 12px;
+            }
+            50% {
+                opacity: 0.6;
+                letter-spacing: 14px;
+            }
+        }
+
+        .loading-sub {
+            font-size: clamp(0.7rem, 2vw, 0.9rem);
+            color: rgba(255, 255, 255, 0.3);
+            letter-spacing: 8px;
+            margin-top: 10px;
+            font-weight: 400;
+            text-transform: uppercase;
+            z-index: 2;
+            animation: fadeInOut 3s ease-in-out infinite;
+        }
+
+        @keyframes fadeInOut {
+            0%,
+            100% {
+                opacity: 0.3;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        /* ============================================================
+           4.  AUTH SCREEN
+           ============================================================ */
+        #auth-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            background: var(--surface);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        #auth-screen.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 400px;
+            background: var(--surface);
+            border-radius: 24px;
+            padding: 40px 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 0, 0, 0.02);
+        }
+
+        .auth-logo {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            display: block;
+            filter: drop-shadow(0 4px 12px rgba(122, 14, 14, 0.15));
+        }
+
+        .auth-logo svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .auth-title {
+            font-size: 1.6rem;
+            font-weight: 600;
+            text-align: center;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .auth-sub {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+        }
+
+        .auth-toggle {
+            display: flex;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.03);
+            border-radius: 40px;
+            padding: 4px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .auth-toggle button {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .auth-toggle button.active {
+            background: var(--primary-gradient);
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(122, 14, 14, 0.2);
+        }
+
+        .auth-toggle button:not(.active):hover {
+            color: var(--primary);
+            background: rgba(122, 14, 14, 0.04);
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .auth-form .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .auth-form .field label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: 0.3px;
+        }
+
+        .auth-form .field input {
+            padding: 12px 16px;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: var(--font);
+            background: rgba(0, 0, 0, 0.02);
+            transition: border 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
+
+        .auth-form .field input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(122, 14, 14, 0.08);
+        }
+
+        .auth-form .btn-primary {
+            padding: 14px;
+            border: none;
+            border-radius: 40px;
+            background: var(--primary-gradient);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 16px rgba(122, 14, 14, 0.15);
+            margin-top: 4px;
+            position: relative;
+        }
+
+        .auth-form .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 24px rgba(122, 14, 14, 0.25);
+        }
+
+        .auth-form .btn-primary:active {
+            transform: scale(0.96);
+        }
+
+        .auth-form .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .auth-form .btn-primary .spinner-btn {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin: 0 auto;
+        }
+
+        .auth-form .btn-primary.loading .spinner-btn {
+            display: block;
+        }
+        .auth-form .btn-primary.loading .btn-text {
+            display: none;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .auth-error {
+            color: #d32f2f;
+            font-size: 0.85rem;
+            text-align: center;
+            min-height: 1.4rem;
+            margin-top: 4px;
+        }
+
+        .auth-success {
+            color: #2e7d32;
+            font-size: 0.85rem;
+            text-align: center;
+            min-height: 1.4rem;
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .auth-footer a {
+            color: var(--primary);
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            border-bottom: 1px dotted transparent;
+            transition: border-color 0.2s;
+        }
+
+        .auth-footer a:hover {
+            border-color: var(--primary);
+        }
+
+        .auth-footer .privacy-link {
+            display: inline-block;
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            border-bottom: none;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .auth-footer .privacy-link:hover {
+            opacity: 1;
+            border-bottom: none;
+        }
+
+        /* ============================================================
+           5.  MAIN APP
+           ============================================================ */
+        #app {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+            max-width: 100%;
+            background: var(--bg-body);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #app.active {
+            display: flex;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(20px) saturate(1.2);
+            -webkit-backdrop-filter: blur(20px) saturate(1.2);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-shrink: 0;
+            min-height: 72px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.02);
+            position: relative;
+            z-index: 10;
+            animation: slideDown 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-24px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header-logo {
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: pointer;
+            border-radius: 12px;
+            padding: 2px;
+            background: rgba(122, 14, 14, 0.06);
+        }
+
+        .header-logo:hover {
+            transform: scale(1.08) rotate(-4deg);
+            background: rgba(122, 14, 14, 0.10);
+        }
+
+        .header-logo:active {
+            transform: scale(0.92);
+        }
+
+        .header-logo svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            filter: drop-shadow(0 2px 8px rgba(122, 14, 14, 0.12));
+        }
+
+        .header-title {
+            font-size: clamp(1.2rem, 3.5vw, 1.8rem);
+            font-weight: 600;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+            font-family: var(--font);
+        }
+
+        .header-badge {
+            font-size: 0.55rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: rgba(0, 0, 0, 0.04);
+            padding: 2px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .header-spacer {
+            flex: 1;
+        }
+
+        .header-logout {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 6px 14px;
+            border-radius: 30px;
+            transition: background 0.2s, color 0.2s;
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .header-logout:hover {
+            background: rgba(122, 14, 14, 0.06);
+            color: var(--primary);
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 16px 100px;
+            background: var(--bg-body);
+            scroll-behavior: smooth;
+        }
+
+        .content::-webkit-scrollbar {
+            width: 4px;
+        }
+        .content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .content::-webkit-scrollbar-thumb {
+            background: var(--primary-light);
+            border-radius: 8px;
+        }
+
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 760px;
+            margin: 0 auto;
+            padding-top: 4px;
+        }
+
+        .message {
+            padding: 16px 22px;
+            max-width: 88%;
+            word-wrap: break-word;
+            font-size: clamp(0.95rem, 1.6vw, 1.05rem);
+            line-height: 1.65;
+            animation: messageIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            border-radius: 20px;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        @keyframes messageIn {
+            0% {
+                opacity: 0;
+                transform: translateY(30px) scale(0.96);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .message:hover {
+            transform: translateY(-2px);
+        }
+
+        .message.user {
+            background: var(--primary-gradient);
+            color: #FFFFFF;
+            align-self: flex-end;
+            border-bottom-right-radius: 6px;
+            box-shadow: 0 4px 20px rgba(122, 14, 14, 0.20);
+        }
+        .message.user:hover {
+            box-shadow: 0 6px 28px rgba(122, 14, 14, 0.30);
+        }
+
+        .message.assistant {
+            background: var(--surface);
+            color: var(--text-primary);
+            align-self: flex-start;
+            border-bottom-left-radius: 6px;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            padding: 16px 18px 16px 14px;
+        }
+        .message.assistant:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        }
+
+        .message.assistant .avatar {
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+            background: var(--primary-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+            box-shadow: 0 2px 12px rgba(122, 14, 14, 0.20);
+            transition: transform 0.3s ease;
+        }
+        .message.assistant:hover .avatar {
+            transform: scale(1.05);
+        }
+
+        .message.assistant .avatar svg {
+            width: 18px;
+            height: 18px;
+            fill: #fff;
+        }
+
+        .message.assistant .bubble {
+            flex: 1;
+        }
+
+        .message img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 14px;
+            display: block;
+            margin: 6px 0 10px 0;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .message img:hover {
+            transform: scale(1.01);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.10);
+        }
+
+        .message .image-label {
+            font-size: 0.7rem;
+            opacity: 0.5;
+            margin-top: 2px;
+            display: block;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        .message .timestamp {
+            font-size: 0.6rem;
+            opacity: 0.4;
+            margin-top: 8px;
+            display: inline-block;
+            font-weight: 400;
+            letter-spacing: 0.2px;
+        }
+        .message.user .timestamp {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .message.assistant .timestamp {
+            color: var(--text-secondary);
+        }
+
+        .share-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 3px 12px 3px 8px;
+            margin-left: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: var(--text-secondary);
+            opacity: 0.5;
+            transition: opacity 0.25s, transform 0.25s, background 0.25s;
+            font-size: 0.75rem;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.03);
+            font-weight: 500;
+            letter-spacing: 0.2px;
+        }
+        .share-btn:hover {
+            opacity: 1;
+            transform: scale(1.04);
+            background: rgba(122, 14, 14, 0.06);
+            color: var(--primary);
+        }
+        .share-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .message-footer {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 6px;
+            gap: 4px 8px;
+        }
+
+        .support-info {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(122, 14, 14, 0.03);
+            padding: 14px 18px;
+            border-radius: 12px;
+            color: var(--text-secondary);
+            transition: background 0.3s ease;
+        }
+        .support-info:hover {
+            background: rgba(122, 14, 14, 0.06);
+        }
+
+        .support-info .row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px 14px;
+            font-size: 0.82rem;
+        }
+        .support-info .label {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.75rem;
+            letter-spacing: 0.4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+        }
+        .support-info .label svg {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 2;
+        }
+        .support-info a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s, text-decoration 0.2s;
+        }
+        .support-info a:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+        .support-info .emergency-numbers {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 16px;
+        }
+        .support-info .emergency-numbers strong {
+            color: var(--primary);
+            font-weight: 600;
+        }
+        .support-info .credit {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            opacity: 0.5;
+            letter-spacing: 0.3px;
+        }
+        .support-info .privacy-row {
+            margin-top: 4px;
+            border-top: 1px solid rgba(0, 0, 0, 0.04);
+            padding-top: 10px;
+            font-size: 0.75rem;
+            justify-content: center;
+        }
+        .support-info .privacy-row a {
+            color: var(--text-muted);
+            font-weight: 400;
+            transition: color 0.2s;
+            border-bottom: 1px dotted transparent;
+        }
+        .support-info .privacy-row a:hover {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            text-decoration: none;
+        }
+
+        .typing-indicator {
+            display: inline-flex;
+            gap: 6px;
+            padding: 4px 0;
+        }
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite both;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typingBounce {
+            0%,
+            60%,
+            100% {
+                transform: translateY(0);
+                opacity: 0.3;
+            }
+            30% {
+                transform: translateY(-8px);
+                opacity: 1;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            animation: slideUpFade 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .empty-state .icon-wrapper {
+            width: 80px;
+            height: 80px;
+            background: rgba(122, 14, 14, 0.04);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 4px;
+            border: 1px solid rgba(122, 14, 14, 0.06);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+            animation: float 3.5s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+        .empty-state .icon-wrapper:hover {
+            transform: scale(1.05) rotate(-2deg);
+            box-shadow: var(--shadow-md);
+        }
+        .empty-state .icon-wrapper svg {
+            width: 44px;
+            height: 44px;
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 1.5;
+            opacity: 0.5;
+        }
+        .empty-state .main-tagline {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+            margin-top: 4px;
+        }
+        .empty-state .tagline-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 2px;
+        }
+        .empty-state .sub-tagline {
+            font-size: 0.92rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            letter-spacing: -0.1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .bottom-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) scale(1);
+            width: calc(100% - 32px);
+            max-width: 760px;
+            background: var(--surface-glass);
+            backdrop-filter: blur(24px) saturate(1.2);
+            -webkit-backdrop-filter: blur(24px) saturate(1.2);
+            border: 1px solid var(--surface-glass-border);
+            border-radius: var(--radius-full);
+            padding: 6px 6px 6px 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+            transition: box-shadow 0.4s ease, background 0.4s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            animation: slideUpBar 0.7s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        @keyframes slideUpBar {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0) scale(1);
+            }
+        }
+        .bottom-bar:focus-within {
+            box-shadow: 0 8px 48px rgba(122, 14, 14, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.92);
+            transform: translateX(-50%) scale(1.01);
+        }
+        .bottom-bar .search-wrap {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            background: transparent;
+            border-radius: 40px;
+            padding: 0;
+        }
+        .bottom-bar .search-wrap input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 14px 4px;
+            font-size: clamp(1rem, 2vw, 1.05rem);
+            font-weight: 400;
+            outline: none;
+            color: var(--text-primary);
+            min-width: 0;
+            font-family: var(--font);
+            letter-spacing: -0.2px;
+        }
+        .bottom-bar .search-wrap input::placeholder {
+            color: var(--text-secondary);
+            font-weight: 400;
+            opacity: 0.5;
+            transition: opacity 0.3s ease;
+        }
+        .bottom-bar .search-wrap input:focus::placeholder {
+            opacity: 0.2;
+        }
+
+        .bottom-bar .btn-camera {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.3s, color 0.3s, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            background: rgba(0, 0, 0, 0.02);
+            color: var(--text-primary);
+            animation: pulse 2.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(122, 14, 14, 0.15);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(122, 14, 14, 0);
+            }
+        }
+        .bottom-bar .btn-camera:hover {
+            background: rgba(122, 14, 14, 0.08);
+            color: var(--primary);
+            transform: scale(1.05);
+            animation: none;
+        }
+        .bottom-bar .btn-camera:active {
+            transform: scale(0.90);
+        }
+
+        .bottom-bar .btn-camera .badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 20px;
+            height: 20px;
+            background: var(--primary-gradient);
+            color: #fff;
+            border-radius: 50%;
+            font-size: 0.5rem;
+            font-weight: 600;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 8px rgba(122, 14, 14, 0.25);
+        }
+        .bottom-bar .btn-camera .badge.show {
+            display: flex;
+            animation: badgePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes badgePop {
+            from {
+                transform: scale(0);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .bottom-bar .btn-send {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            background: var(--primary-gradient);
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s, opacity 0.3s;
+            box-shadow: 0 4px 16px rgba(122, 14, 14, 0.20);
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        .bottom-bar .btn-send.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .bottom-bar .btn-send.active:hover {
+            box-shadow: 0 6px 28px rgba(122, 14, 14, 0.35);
+            transform: scale(1.05);
+        }
+        .bottom-bar .btn-send:active {
+            transform: scale(0.90);
+        }
+
+        /* ============================================================
+           CAMERA OVERLAY
+           ============================================================ */
+        #camera-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            background: rgba(0, 0, 0, 0.94);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            animation: fadeIn 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        #camera-overlay.active {
+            display: flex;
+        }
+
+        #camera-overlay video {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 24px;
+            background: #0a0a0a;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+            object-fit: cover;
+            aspect-ratio: 4/3;
+            width: auto;
+            height: auto;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            animation: scaleIn 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        @keyframes scaleIn {
+            from {
+                transform: scale(0.92);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        #camera-overlay .cam-controls {
+            display: flex;
+            gap: 20px;
+            margin-top: 32px;
+            flex-wrap: wrap;
+            justify-content: center;
+            animation: slideUpFade 0.5s cubic-bezier(0.23, 1, 0.32, 1) 0.1s both;
+        }
+        #camera-overlay .cam-controls button {
+            padding: 14px 36px;
+            border: none;
+            border-radius: 60px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s, background 0.3s;
+            font-family: var(--font);
+            min-width: 130px;
+            letter-spacing: 0.3px;
+            position: relative;
+            overflow: hidden;
+        }
+        #camera-overlay .cam-controls button:active {
+            transform: scale(0.94);
+        }
+        #camera-overlay .cam-controls button::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(255, 255, 255, 0.2) 0%, transparent 80%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #camera-overlay .cam-controls button:hover::after {
+            opacity: 1;
+        }
+
+        #camera-overlay .btn-identify {
+            background: var(--primary-gradient);
+            color: #fff;
+            box-shadow: 0 4px 28px rgba(122, 14, 14, 0.35);
+        }
+        #camera-overlay .btn-identify:hover {
+            box-shadow: 0 6px 40px rgba(122, 14, 14, 0.45);
+            transform: scale(1.04);
+        }
+        #camera-overlay .btn-close-cam {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(4px);
+        }
+        #camera-overlay .btn-close-cam:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: scale(1.04);
+        }
+        #camera-overlay .cam-status {
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 0.85rem;
+            margin-top: 20px;
+            letter-spacing: 0.5px;
+            font-weight: 400;
+            animation: slideUpFade 0.5s cubic-bezier(0.23, 1, 0.32, 1) 0.2s both;
+        }
+
+        /* ============================================================
+           EMERGENCY OVERLAY
+           ============================================================ */
+        #emergency-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(10, 2, 2, 0.94);
+            backdrop-filter: blur(32px) saturate(1.4);
+            -webkit-backdrop-filter: blur(32px) saturate(1.4);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 24px 20px;
+            animation: fadeIn 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+            overflow-y: auto;
+        }
+        #emergency-overlay.active {
+            display: flex;
+        }
+
+        #emergency-overlay .emergency-header {
+            width: 100%;
+            max-width: 620px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 8px 4px 18px 4px;
+            color: #fff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            margin-bottom: 24px;
+            flex-shrink: 0;
+        }
+        #emergency-overlay .emergency-header .header-left h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            color: #fff;
+        }
+        #emergency-overlay .emergency-header .header-left .header-sub {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.3);
+            font-weight: 400;
+            margin-top: 2px;
+            letter-spacing: 0.3px;
+        }
+        #emergency-overlay .emergency-close {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.5);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.25s, transform 0.25s, color 0.25s;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-top: -4px;
+        }
+        #emergency-overlay .emergency-close:hover {
+            background: rgba(255, 255, 255, 0.10);
+            color: #fff;
+            transform: scale(1.05);
+        }
+        #emergency-overlay .emergency-close:active {
+            transform: scale(0.92);
+        }
+
+        #emergency-overlay .emergency-list {
+            width: 100%;
+            max-width: 620px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-bottom: 20px;
+        }
+        #emergency-overlay .emergency-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 16px 20px;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 1rem;
+            font-weight: 400;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.25s, border-color 0.3s, box-shadow 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            letter-spacing: 0.1px;
+        }
+        #emergency-overlay .emergency-item:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(122, 14, 14, 0.3);
+            transform: translateX(5px);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+        }
+        #emergency-overlay .emergency-item:active {
+            transform: scale(0.98);
+        }
+        #emergency-overlay .emergency-item .item-index {
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.15);
+            font-weight: 600;
+            min-width: 28px;
+            text-align: right;
+            letter-spacing: 0.5px;
+        }
+        #emergency-overlay .emergency-item .item-label {
+            flex: 1;
+            font-weight: 450;
+        }
+        #emergency-overlay .emergency-item .item-arrow {
+            color: rgba(255, 255, 255, 0.08);
+            font-size: 1.2rem;
+            transition: transform 0.3s, color 0.3s;
+        }
+        #emergency-overlay .emergency-item:hover .item-arrow {
+            transform: translateX(5px);
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        #emergency-overlay .emergency-detail {
+            width: 100%;
+            max-width: 620px;
+            display: none;
+            flex-direction: column;
+            gap: 18px;
+            padding-bottom: 20px;
+            animation: fadeIn 0.4s ease;
+        }
+        #emergency-overlay .emergency-detail.active {
+            display: flex;
+        }
+        #emergency-overlay .emergency-detail .back-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.9rem;
+            cursor: pointer;
+            padding: 8px 4px;
+            align-self: flex-start;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 0.25s;
+            font-weight: 400;
+        }
+        #emergency-overlay .emergency-detail .back-btn:hover {
+            color: #fff;
+        }
+        #emergency-overlay .emergency-detail .back-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        #emergency-overlay .emergency-detail .response-box {
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 24px 28px;
+            color: rgba(255, 255, 255, 0.92);
+            font-size: 0.95rem;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 55vh;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: border-color 0.3s;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+        }
+        #emergency-overlay .emergency-detail .response-box::-webkit-scrollbar {
+            width: 4px;
+        }
+        #emergency-overlay .emergency-detail .response-box::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #emergency-overlay .emergency-detail .response-box::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+        }
+
+        .emergency-loading {
+            color: rgba(255, 255, 255, 0.3);
+            text-align: center;
+            padding: 40px 0;
+            font-size: 0.95rem;
+            letter-spacing: 0.5px;
+        }
+        .emergency-loading .spinner {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            border: 2px solid rgba(255, 255, 255, 0.04);
+            border-top: 2px solid var(--primary-light);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        /* ============================================================
+           PRIVACY POLICY OVERLAY
+           ============================================================ */
+        #privacy-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(10, 2, 2, 0.95);
+            backdrop-filter: blur(32px) saturate(1.4);
+            -webkit-backdrop-filter: blur(32px) saturate(1.4);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 24px 20px;
+            animation: fadeIn 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+            overflow-y: auto;
+        }
+        #privacy-overlay.active {
+            display: flex;
+        }
+
+        #privacy-overlay .privacy-header {
+            width: 100%;
+            max-width: 820px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 8px 4px 18px 4px;
+            color: #fff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            margin-bottom: 24px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            background: rgba(10, 2, 2, 0.8);
+            backdrop-filter: blur(12px);
+            z-index: 2;
+        }
+        #privacy-overlay .privacy-header .header-left h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            color: #fff;
+        }
+        #privacy-overlay .privacy-header .header-left .header-sub {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.3);
+            font-weight: 400;
+            margin-top: 2px;
+            letter-spacing: 0.3px;
+        }
+        #privacy-overlay .privacy-close {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.5);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 1.3rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.25s, transform 0.25s, color 0.25s;
+            line-height: 1;
+            flex-shrink: 0;
+            margin-top: -4px;
+        }
+        #privacy-overlay .privacy-close:hover {
+            background: rgba(255, 255, 255, 0.10);
+            color: #fff;
+            transform: scale(1.05);
+        }
+        #privacy-overlay .privacy-close:active {
+            transform: scale(0.92);
+        }
+
+        #privacy-overlay .privacy-body {
+            width: 100%;
+            max-width: 820px;
+            padding-bottom: 40px;
+            color: rgba(255, 255, 255, 0.88);
+            font-size: 0.95rem;
+            line-height: 1.8;
+        }
+
+        #privacy-overlay .privacy-body h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 0 0 4px 0;
+            letter-spacing: -0.5px;
+        }
+        #privacy-overlay .privacy-body .subhead {
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.85rem;
+            margin-bottom: 28px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            padding-bottom: 18px;
+        }
+        #privacy-overlay .privacy-body h2 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #fff;
+            margin: 32px 0 12px 0;
+            letter-spacing: -0.2px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            padding-bottom: 8px;
+        }
+        #privacy-overlay .privacy-body h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fff;
+            margin: 22px 0 8px 0;
+            letter-spacing: -0.1px;
+        }
+        #privacy-overlay .privacy-body p {
+            margin: 0 0 12px 0;
+        }
+        #privacy-overlay .privacy-body ul,
+        #privacy-overlay .privacy-body ol {
+            margin: 8px 0 16px 24px;
+            padding-left: 8px;
+        }
+        #privacy-overlay .privacy-body li {
+            margin-bottom: 6px;
+        }
+        #privacy-overlay .privacy-body strong {
+            color: #fff;
+            font-weight: 600;
+        }
+        #privacy-overlay .privacy-body .highlight-box {
+            background: rgba(122, 14, 14, 0.15);
+            border-left: 3px solid var(--primary-light);
+            padding: 14px 20px;
+            border-radius: 8px;
+            margin: 16px 0;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        #privacy-overlay .privacy-body .highlight-box strong {
+            color: #fff;
+        }
+        #privacy-overlay .privacy-body .small-meta {
+            color: rgba(255, 255, 255, 0.25);
+            font-size: 0.75rem;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+        #privacy-overlay .privacy-body .tagline {
+            color: rgba(212, 175, 55, 0.4);
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 30px;
+            letter-spacing: 0.3px;
+            font-weight: 300;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .header {
+                min-height: 60px;
+                padding: 0 16px;
+                gap: 10px;
+            }
+            .header-logo {
+                width: 36px;
+                height: 36px;
+            }
+            .header-badge {
+                display: none;
+            }
+            .content {
+                padding: 14px 12px 90px;
+            }
+            .bottom-bar {
+                bottom: 12px;
+                width: calc(100% - 20px);
+                padding: 4px 4px 4px 16px;
+                border-radius: 40px;
+            }
+            .bottom-bar .btn-camera,
+            .bottom-bar .btn-send {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+            .message {
+                max-width: 94%;
+                padding: 12px 16px;
+                font-size: 0.85rem;
+            }
+            .message.assistant {
+                padding: 12px 14px;
+                gap: 10px;
+            }
+            .message.assistant .avatar {
+                width: 26px;
+                height: 26px;
+            }
+            #camera-overlay video {
+                max-height: 50vh;
+                border-radius: 18px;
+            }
+            #camera-overlay .cam-controls button {
+                padding: 10px 20px;
+                font-size: 0.85rem;
+                min-width: 80px;
+            }
+            #wing-canvas {
+                width: 140px;
+                height: 140px;
+            }
+            .loading-title {
+                font-size: 2rem;
+                letter-spacing: 6px;
+            }
+            .empty-state .icon-wrapper {
+                width: 64px;
+                height: 64px;
+            }
+            .empty-state .icon-wrapper svg {
+                width: 32px;
+                height: 32px;
+            }
+            .empty-state .main-tagline {
+                font-size: 1.1rem;
+            }
+            .empty-state .sub-tagline {
+                font-size: 0.82rem;
+                flex-wrap: wrap;
+            }
+            .support-info {
+                padding: 12px 14px;
+            }
+            .support-info .row {
+                font-size: 0.78rem;
+            }
+            .support-info .emergency-numbers {
+                font-size: 0.78rem;
+                gap: 4px 8px;
+            }
+            .share-btn {
+                font-size: 0.7rem;
+                padding: 2px 8px 2px 5px;
+            }
+            .share-btn svg {
+                width: 13px;
+                height: 13px;
+            }
+            #emergency-overlay {
+                padding: 16px 14px;
+            }
+            #emergency-overlay .emergency-header .header-left h2 {
+                font-size: 1.2rem;
+            }
+            #emergency-overlay .emergency-item {
+                font-size: 0.9rem;
+                padding: 14px 16px;
+                gap: 10px;
+            }
+            #emergency-overlay .emergency-item .item-index {
+                font-size: 0.6rem;
+                min-width: 22px;
+            }
+            #emergency-overlay .emergency-detail .response-box {
+                font-size: 0.88rem;
+                padding: 18px 18px;
+                max-height: 45vh;
+            }
+            #emergency-overlay .emergency-close {
+                width: 34px;
+                height: 34px;
+                font-size: 1.1rem;
+            }
+            .header-logout {
+                font-size: 0.7rem;
+                padding: 4px 10px;
+            }
+            .auth-container {
+                padding: 28px 20px;
+            }
+            #privacy-overlay .privacy-body {
+                font-size: 0.88rem;
+            }
+            #privacy-overlay .privacy-body h1 {
+                font-size: 1.4rem;
+            }
+            #privacy-overlay .privacy-body h2 {
+                font-size: 1rem;
+            }
+            #privacy-overlay .privacy-header .header-left h2 {
+                font-size: 1.2rem;
+            }
+            #privacy-overlay .privacy-close {
+                width: 34px;
+                height: 34px;
+                font-size: 1.1rem;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .header-title {
+                font-size: 1rem;
+            }
+            #wing-canvas {
+                width: 110px;
+                height: 110px;
+            }
+            .loading-title {
+                font-size: 1.6rem;
+            }
+        }
+
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            .bottom-bar {
+                padding-bottom: calc(6px + env(safe-area-inset-bottom));
+            }
+            #emergency-overlay {
+                padding-bottom: calc(24px + env(safe-area-inset-bottom));
+            }
+            #privacy-overlay {
+                padding-bottom: calc(24px + env(safe-area-inset-bottom));
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ============================================================
+    LOADING SCREEN
+    ============================================================ -->
+    <div id="loading-screen" role="status" aria-label="Loading Plexus">
+        <canvas id="wing-canvas" width="400" height="400"></canvas>
+        <div class="loading-title">Plexus</div>
+        <div class="loading-sub">Medical First Aid</div>
+    </div>
+
+    <!-- ============================================================
+    AUTH SCREEN
+    ============================================================ -->
+    <div id="auth-screen">
+        <div class="auth-container">
+            <div class="auth-logo">
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="wingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#7A0E0E" />
+                            <stop offset="100%" stop-color="#4F0808" />
+                        </linearGradient>
+                        <linearGradient id="wingAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.25" />
+                            <stop offset="100%" stop-color="#D4AF37" stop-opacity="0.05" />
+                        </linearGradient>
+                    </defs>
+                    <path d="M50 92 C18 70 6 44 12 28 C18 12 34 4 50 10 C66 4 82 12 88 28 C94 44 82 70 50 92Z" fill="url(#wingGrad)" opacity="0.15" />
+                    <path d="M50 84 C24 66 14 44 18 30 C22 16 38 10 50 16 C62 10 78 16 82 30 C86 44 76 66 50 84Z" fill="url(#wingGrad)" opacity="0.25" />
+                    <path d="M50 76 C30 60 20 42 24 30 C28 18 42 12 50 18 C58 12 72 18 76 30 C80 42 70 60 50 76Z" fill="url(#wingGrad)" opacity="0.5" />
+                    <path d="M50 68 C36 54 28 40 32 30 C36 20 46 14 50 20 C54 14 64 20 68 30 C72 40 64 54 50 68Z" fill="url(#wingGrad)" opacity="0.85" />
+                    <path d="M50 62 C40 50 34 40 38 32 C42 24 48 18 50 24 C52 18 58 24 62 32 C66 40 60 50 50 62Z" fill="url(#wingAccent)" stroke="#D4AF37" stroke-width="0.6" opacity="0.5" />
+                    <path d="M50 58 C46 50 44 40 46 34 C48 28 50 26 50 26 C50 26 52 28 54 34 C56 40 54 50 50 58Z" fill="#FFFFFF" opacity="0.15" />
+                </svg>
+            </div>
+            <div class="auth-title">Plexus</div>
+            <div class="auth-sub">Medical First Aid</div>
+
+            <div class="auth-toggle" id="authToggle">
+                <button class="active" data-mode="login">Log In</button>
+                <button data-mode="signup">Sign Up</button>
+            </div>
+
+            <form class="auth-form" id="authForm">
+                <div class="field" id="nameField" style="display:none;">
+                    <label for="authName">Full Name</label>
+                    <input type="text" id="authName" placeholder="Your name" autocomplete="name" />
+                </div>
+                <div class="field">
+                    <label for="authEmail">Email Address</label>
+                    <input type="email" id="authEmail" placeholder="you@example.com" required autocomplete="email" />
+                </div>
+                <div class="field">
+                    <label for="authPassword">Password</label>
+                    <input type="password" id="authPassword" placeholder="••••••••" required autocomplete="current-password" />
+                </div>
+                <div id="authError" class="auth-error"></div>
+                <div id="authSuccess" class="auth-success"></div>
+                <button type="submit" class="btn-primary" id="authSubmitBtn">
+                    <span class="btn-text">Log In</span>
+                    <span class="spinner-btn"></span>
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <span id="authFooterText">Don't have an account? <a id="authSwitchLink">Sign Up</a></span>
+                <br />
+                <a href="#" id="privacyLinkAuth" class="privacy-link">Privacy Policy</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    MAIN APP
+    ============================================================ -->
+    <div id="app">
+        <header class="header">
+            <div class="header-logo" id="logoEmergencyBtn" aria-label="Emergency Help">
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="wingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#7A0E0E" />
+                            <stop offset="100%" stop-color="#4F0808" />
+                        </linearGradient>
+                        <linearGradient id="wingAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.25" />
+                            <stop offset="100%" stop-color="#D4AF37" stop-opacity="0.05" />
+                        </linearGradient>
+                    </defs>
+                    <path d="M50 92 C18 70 6 44 12 28 C18 12 34 4 50 10 C66 4 82 12 88 28 C94 44 82 70 50 92Z" fill="url(#wingGrad)" opacity="0.15" />
+                    <path d="M50 84 C24 66 14 44 18 30 C22 16 38 10 50 16 C62 10 78 16 82 30 C86 44 76 66 50 84Z" fill="url(#wingGrad)" opacity="0.25" />
+                    <path d="M50 76 C30 60 20 42 24 30 C28 18 42 12 50 18 C58 12 72 18 76 30 C80 42 70 60 50 76Z" fill="url(#wingGrad)" opacity="0.5" />
+                    <path d="M50 68 C36 54 28 40 32 30 C36 20 46 14 50 20 C54 14 64 20 68 30 C72 40 64 54 50 68Z" fill="url(#wingGrad)" opacity="0.85" />
+                    <path d="M50 62 C40 50 34 40 38 32 C42 24 48 18 50 24 C52 18 58 24 62 32 C66 40 60 50 50 62Z" fill="url(#wingAccent)" stroke="#D4AF37" stroke-width="0.6" opacity="0.5" />
+                    <path d="M50 58 C46 50 44 40 46 34 C48 28 50 26 50 26 C50 26 52 28 54 34 C56 40 54 50 50 58Z" fill="#FFFFFF" opacity="0.15" />
+                </svg>
+            </div>
+            <span class="header-title">Plexus</span>
+            <span class="header-badge">First Aid</span>
+            <div class="header-spacer"></div>
+            <button class="header-logout" id="logoutBtn">Log out</button>
+        </header>
+
+        <div class="content" id="content">
+            <div class="chat-area" id="chatArea">
+                <div class="empty-state" id="emptyState">
+                    <div class="icon-wrapper">
+                        <svg viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                            <path d="M2 17l10 5 10-5" />
+                            <path d="M2 12l10 5 10-5" />
+                        </svg>
+                    </div>
+                    <p class="main-tagline">Online Medical First Aid</p>
+                    <div class="tagline-group">
+                        <span class="sub-tagline">Scan your drug and get information</span>
+                        <span class="sub-tagline">Get emergency diagnosis of your condition</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-bar">
+            <div class="search-wrap">
+                <input type="text" id="searchInput" placeholder="Search drug or symptom..." autocomplete="off" aria-label="Search input" />
+            </div>
+            <button class="btn-camera" id="btnCamera" aria-label="Open camera">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                </svg>
+                <span class="badge" id="camBadge">1</span>
+            </button>
+            <button class="btn-send" id="btnSend" aria-label="Send message">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    CAMERA OVERLAY
+    ============================================================ -->
+    <div id="camera-overlay">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <div class="cam-controls">
+            <button class="btn-close-cam" id="btnCloseCam">Close</button>
+            <button class="btn-identify" id="btnIdentify">Identify Drug</button>
+        </div>
+        <div class="cam-status" id="camStatus">Frame your drug clearly</div>
+    </div>
+
+    <!-- ============================================================
+    EMERGENCY OVERLAY
+    ============================================================ -->
+    <div id="emergency-overlay">
+        <div class="emergency-header">
+            <div class="header-left">
+                <h2>Emergency First Aid</h2>
+                <div class="header-sub">Select a condition for step-by-step guidance</div>
+            </div>
+            <button class="emergency-close" id="emergencyCloseBtn">×</button>
+        </div>
+        <div class="emergency-list" id="emergencyList"></div>
+        <div class="emergency-detail" id="emergencyDetail">
+            <button class="back-btn" id="emergencyBackBtn">
+                <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+                Back to list
+            </button>
+            <div class="response-box" id="emergencyResponse">Select an emergency to get first‑aid instructions.</div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    PRIVACY POLICY OVERLAY
+    ============================================================ -->
+    <div id="privacy-overlay">
+        <div class="privacy-header">
+            <div class="header-left">
+                <h2>Privacy Policy</h2>
+                <div class="header-sub">Plexus · Last Updated: September 7, 2026</div>
+            </div>
+            <button class="privacy-close" id="privacyCloseBtn">×</button>
+        </div>
+        <div class="privacy-body" id="privacyBody">
+            <!-- Injected by JS -->
+        </div>
+    </div>
+
+    <!-- ============================================================
+    JAVASCRIPT
+    ============================================================ -->
+    <script>
+        (function() {
+            'use strict';
+
+            /* =============================================================
+               0.  SUPABASE INIT
+               ============================================================= */
+            const SUPABASE_URL = 'https://uqwvibjqalupjwlscrvt.supabase.co';
+            const SUPABASE_ANON_KEY = 'sb_publishable_9lnU7yNAwO9SQaQlIaZz6w_eq9GsCoR';
+
+            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            /* =============================================================
+               1.  CONFIGURATION
+               ============================================================= */
+            const MISTRAL_API_KEY = 'VfbHnaYivk0sFR5RbUFP7XQrdhbt1U4V';
+            const MISTRAL_ENDPOINT = 'https://api.mistral.ai/v1/chat/completions';
+            const MISTRAL_TEXT_MODEL = 'ministral-8b-latest';
+            const MISTRAL_VISION_MODEL = 'pixtral-12b-2409';
+            const CUSTOMER_EMAIL = 'ikechihyacinth@outlook.com';
+
+            /* =============================================================
+               2.  DOM REFERENCES
+               ============================================================= */
+            const $ = (id) => document.getElementById(id);
+
+            const loadingScreen = $('loading-screen');
+            const authScreen = $('auth-screen');
+            const app = $('app');
+            const wingCanvas = $('wing-canvas');
+            const ctx = wingCanvas.getContext('2d');
+            const content = $('content');
+            const chatArea = $('chatArea');
+            const emptyState = $('emptyState');
+            const searchInput = $('searchInput');
+            const btnCamera = $('btnCamera');
+            const btnSend = $('btnSend');
+            const camBadge = $('camBadge');
+            const cameraOverlay = $('camera-overlay');
+            const cameraVideo = $('cameraVideo');
+            const btnIdentify = $('btnIdentify');
+            const btnCloseCam = $('btnCloseCam');
+            const camStatus = $('camStatus');
+            const logoutBtn = $('logoutBtn');
+
+            const authToggle = $('authToggle');
+            const authForm = $('authForm');
+            const authName = $('authName');
+            const authEmail = $('authEmail');
+            const authPassword = $('authPassword');
+            const authError = $('authError');
+            const authSuccess = $('authSuccess');
+            const authSubmitBtn = $('authSubmitBtn');
+            const authFooterText = $('authFooterText');
+            const authSwitchLink = $('authSwitchLink');
+            const nameField = $('nameField');
+
+            const emergencyOverlay = $('emergency-overlay');
+            const emergencyList = $('emergencyList');
+            const emergencyDetail = $('emergencyDetail');
+            const emergencyResponse = $('emergencyResponse');
+            const emergencyCloseBtn = $('emergencyCloseBtn');
+            const emergencyBackBtn = $('emergencyBackBtn');
+            const logoEmergencyBtn = $('logoEmergencyBtn');
+
+            // Privacy
+            const privacyOverlay = $('privacy-overlay');
+            const privacyBody = $('privacyBody');
+            const privacyCloseBtn = $('privacyCloseBtn');
+            const privacyLinkAuth = $('privacyLinkAuth');
+
+            /* =============================================================
+               3.  STATE
+               ============================================================= */
+            const state = {
+                cameraStream: null,
+                isCameraActive: false,
+                imageData: null,
+                imageDataForApi: null,
+                pendingImage: false,
+                messageCount: 0,
+                wingAngle: 0,
+                wingAnimId: null,
+                isProcessing: false,
+                conversationHistory: [],
+                isEmergencyLoading: false,
+                authMode: 'login',
+            };
+
+            const WING_CENTER_X = 200;
+            const WING_CENTER_Y = 200;
+
+            /* =============================================================
+               4.  WING ANIMATION
+               ============================================================= */
+            function drawWing(angle) {
+                ctx.clearRect(0, 0, 400, 400);
+                const cx = WING_CENTER_X;
+                const cy = WING_CENTER_Y;
+                const flap = Math.sin(angle) * 0.3 + 0.7;
+
+                const featherCount = 18;
+                const baseColors = [
+                    'rgba(255,255,255,0.95)',
+                    'rgba(255,255,255,0.85)',
+                    'rgba(255,255,255,0.75)',
+                    'rgba(255,255,255,0.65)',
+                    'rgba(255,255,255,0.55)',
+                    'rgba(255,255,255,0.45)',
+                    'rgba(255,255,255,0.35)',
+                    'rgba(255,255,255,0.25)',
+                    'rgba(255,255,255,0.15)',
+                ];
+
+                for (let i = featherCount - 1; i >= 0; i--) {
+                    const t = i / (featherCount - 1);
+                    const baseAngle = -0.9 + t * 1.8;
+                    const featherLen = 75 + t * 85 + 15 * Math.sin(angle * 0.5 + i * 0.6);
+                    const featherWidth = 10 + t * 30 + 6 * Math.sin(angle * 0.4 + i * 0.4);
+                    const spread = 1.0 - 0.1 * (1 - t) * (1 - Math.sin(angle * 0.5 + i * 0.5) * 0.2);
+                    const currentAngle = baseAngle * spread;
+                    const colorIndex = Math.min(Math.floor(t * baseColors.length), baseColors.length - 1);
+                    const alpha = 0.8 + 0.2 * (1 - t);
+
+                    const flapAngle = (1 - flap) * 0.6 * (0.5 + t * 0.5);
+                    const finalAngle = currentAngle + flapAngle * 0.3;
+
+                    const len = featherLen * (0.85 + 0.15 * flap);
+                    const w = featherWidth * (0.8 + 0.2 * flap);
+
+                    const x = cx + Math.sin(finalAngle) * 25 * t;
+                    const y = cy - 20 - Math.cos(finalAngle) * 25 * t;
+
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(finalAngle);
+
+                    const gradient = ctx.createRadialGradient(0, -len * 0.4, 2, 0, -len * 0.2, len * 0.8);
+                    const baseCol = `rgba(255,255,255,${alpha * 0.9})`;
+                    const tipCol = `rgba(255,255,255,${alpha * 0.15})`;
+                    gradient.addColorStop(0, baseCol);
+                    gradient.addColorStop(0.5, baseCol);
+                    gradient.addColorStop(1, tipCol);
+
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.quadraticCurveTo(w * 0.5, -len * 0.3, w * 0.35, -len * 0.7);
+                    ctx.quadraticCurveTo(w * 0.15, -len * 0.9, 0, -len);
+                    ctx.quadraticCurveTo(-w * 0.15, -len * 0.9, -w * 0.35, -len * 0.7);
+                    ctx.quadraticCurveTo(-w * 0.5, -len * 0.3, 0, 0);
+                    ctx.closePath();
+
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    ctx.strokeStyle = `rgba(255,255,255,${alpha * 0.05})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+
+                    ctx.restore();
+                }
+
+                const grad = ctx.createRadialGradient(cx, cy - 30, 10, cx, cy - 20, 190);
+                grad.addColorStop(0, 'rgba(255,255,255,0.03)');
+                grad.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, 400, 400);
+            }
+
+            function animateWing() {
+                state.wingAngle += 0.025;
+                drawWing(state.wingAngle);
+                state.wingAnimId = requestAnimationFrame(animateWing);
+            }
+
+            function startLoadingAnimation() { animateWing(); }
+
+            function stopLoadingAnimation() {
+                if (state.wingAnimId) {
+                    cancelAnimationFrame(state.wingAnimId);
+                    state.wingAnimId = null;
+                }
+                drawWing(0.5);
+            }
+
+            /* =============================================================
+               5.  AUTH LOGIC
+               ============================================================= */
+            function setAuthMode(mode) {
+                state.authMode = mode;
+                const isLogin = mode === 'login';
+                authSubmitBtn.querySelector('.btn-text').textContent = isLogin ? 'Log In' : 'Sign Up';
+                authFooterText.innerHTML = isLogin ?
+                    "Don't have an account? <a id='authSwitchLink'>Sign Up</a>" :
+                    "Already have an account? <a id='authSwitchLink'>Log In</a>";
+
+                document.getElementById('authSwitchLink')?.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    setAuthMode(isLogin ? 'signup' : 'login');
+                    document.querySelectorAll('.auth-toggle button').forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.mode === (isLogin ? 'signup' :
+                        'login'));
+                    });
+                    nameField.style.display = isLogin ? 'none' : 'flex';
+                    authError.textContent = '';
+                    authSuccess.textContent = '';
+                    authPassword.value = '';
+                });
+
+                document.querySelectorAll('.auth-toggle button').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mode === mode);
+                });
+
+                nameField.style.display = isLogin ? 'none' : 'flex';
+                authError.textContent = '';
+                authSuccess.textContent = '';
+                authPassword.value = '';
+                authSubmitBtn.classList.remove('loading');
+                authSubmitBtn.disabled = false;
+            }
+
+            async function handleAuthSubmit(e) {
+                e.preventDefault();
+                authError.textContent = '';
+                authSuccess.textContent = '';
+
+                const email = authEmail.value.trim();
+                const password = authPassword.value;
+                const name = authName.value.trim();
+
+                if (!email || !password) {
+                    authError.textContent = 'Please fill in all fields.';
+                    return;
+                }
+                if (state.authMode === 'signup' && !name) {
+                    authError.textContent = 'Please enter your name.';
+                    return;
+                }
+
+                authSubmitBtn.classList.add('loading');
+                authSubmitBtn.disabled = true;
+
+                try {
+                    let response;
+                    if (state.authMode === 'login') {
+                        response = await supabase.auth.signInWithPassword({ email, password });
+                    } else {
+                        response = await supabase.auth.signUp({
+                            email,
+                            password,
+                            options: { data: { full_name: name } }
+                        });
+                    }
+
+                    if (response.error) {
+                        authError.textContent = response.error.message;
+                        authSubmitBtn.classList.remove('loading');
+                        authSubmitBtn.disabled = false;
+                        return;
+                    }
+
+                    if (state.authMode === 'signup' && response.data.user && !response.data.session) {
+                        authSuccess.textContent = '✅ Check your email to confirm your account.';
+                        authEmail.value = '';
+                        authPassword.value = '';
+                        authName.value = '';
+                        authSubmitBtn.classList.remove('loading');
+                        authSubmitBtn.disabled = false;
+                        return;
+                    }
+
+                    if (response.data.session) {
+                        authSuccess.textContent = state.authMode === 'login' ? '✅ Welcome back!' :
+                            '✅ Account created!';
+                        setTimeout(() => showApp(), 500);
+                    } else {
+                        authSuccess.textContent = 'Please check your email to confirm your account.';
+                        authSubmitBtn.classList.remove('loading');
+                        authSubmitBtn.disabled = false;
+                    }
+                } catch (err) {
+                    authError.textContent = err.message || 'An error occurred.';
+                    authSubmitBtn.classList.remove('loading');
+                    authSubmitBtn.disabled = false;
+                }
+            }
+
+            /* =============================================================
+               6.  APP VISIBILITY
+               ============================================================= */
+            function showAuth() {
+                authScreen.classList.add('active');
+                app.classList.remove('active');
+                loadingScreen.classList.add('hidden');
+                stopLoadingAnimation();
+            }
+
+            function showApp() {
+                authScreen.classList.remove('active');
+                app.classList.add('active');
+                loadingScreen.classList.add('hidden');
+                stopLoadingAnimation();
+                setTimeout(() => searchInput.focus(), 500);
+            }
+
+            async function checkSession() {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) showApp();
+                else { showAuth();
+                    setAuthMode('login'); }
+            }
+
+            async function handleLogout() {
+                await supabase.auth.signOut();
+                state.conversationHistory = [];
+                chatArea.innerHTML = '';
+                emptyState.style.display = 'flex';
+                showAuth();
+                setAuthMode('login');
+            }
+
+            /* =============================================================
+               7.  CAMERA
+               ============================================================= */
+            async function openCamera() {
+                try {
+                    if (state.cameraStream) {
+                        state.cameraStream.getTracks().forEach(t => t.stop());
+                        state.cameraStream = null;
+                    }
+                    const constraints = {
+                        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+                        audio: false,
+                    };
+                    state.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    cameraVideo.srcObject = state.cameraStream;
+                    await cameraVideo.play();
+                    state.isCameraActive = true;
+                    cameraOverlay.classList.add('active');
+                    camStatus.textContent = 'Frame your drug clearly';
+                    camStatus.style.color = 'rgba(255,255,255,0.5)';
+                } catch (err) {
+                    console.error('Camera error:', err);
+                    camStatus.textContent = 'Camera access denied. Using file picker.';
+                    camStatus.style.color = '#ff8a8a';
+                    fallbackFileInput();
+                }
+            }
+
+            function fallbackFileInput() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.capture = 'environment';
+                input.onchange = function(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = function(ev) {
+                        const dataURL = ev.target.result;
+                        const base64 = dataURL.split(',')[1];
+                        state.imageData = dataURL;
+                        state.imageDataForApi = base64;
+                        addImageMessage(dataURL);
+                        camBadge.classList.add('show');
+                        camBadge.textContent = '1';
+                        cameraOverlay.classList.remove('active');
+                        closeCamera();
+                        state.pendingImage = true;
+                        searchInput.placeholder = 'Ask about this drug...';
+                        searchInput.focus();
+                        updateSendButton();
+                    };
+                    reader.readAsDataURL(file);
+                    document.body.removeChild(input);
+                };
+                document.body.appendChild(input);
+                input.click();
+            }
+
+            function closeCamera() {
+                if (state.cameraStream) {
+                    state.cameraStream.getTracks().forEach(t => t.stop());
+                    state.cameraStream = null;
+                }
+                state.isCameraActive = false;
+                cameraOverlay.classList.remove('active');
+                cameraVideo.srcObject = null;
+            }
+
+            async function captureAndIdentify() {
+                if (!state.cameraStream) return;
+                try {
+                    const track = state.cameraStream.getVideoTracks()[0];
+                    const settings = track.getSettings();
+                    const width = settings.width || 1280;
+                    const height = settings.height || 720;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const canvasCtx = canvas.getContext('2d');
+                    canvasCtx.drawImage(cameraVideo, 0, 0, width, height);
+                    const dataURL = canvas.toDataURL('image/jpeg', 0.92);
+                    const base64Data = dataURL.split(',')[1];
+                    state.imageData = dataURL;
+                    state.imageDataForApi = base64Data;
+                    camStatus.textContent = '✅ Captured';
+                    camStatus.style.color = '#69db7c';
+                    addImageMessage(dataURL);
+                    camBadge.classList.add('show');
+                    camBadge.textContent = '1';
+                    setTimeout(() => {
+                        closeCamera();
+                        state.pendingImage = true;
+                        searchInput.placeholder = 'Ask about this drug...';
+                        searchInput.focus();
+                        updateSendButton();
+                    }, 400);
+                } catch (err) {
+                    console.error('Capture error:', err);
+                    camStatus.textContent = 'Capture failed. Try again.';
+                    camStatus.style.color = '#ff6b6b';
+                }
+            }
+
+            /* =============================================================
+               8.  MESSAGES
+               ============================================================= */
+            function addImageMessage(dataURL) {
+                emptyState.style.display = 'none';
+                const div = document.createElement('div');
+                div.className = 'message user';
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                div.innerHTML = `
+                        <img src="${dataURL}" alt="Captured photo" />
+                        <span class="image-label">Photo</span>
+                        <span class="timestamp">${timeStr}</span>
+                    `;
+                chatArea.appendChild(div);
+                scrollToBottom();
+                state.messageCount++;
+            }
+
+            function addTextMessage(text, isUser = true) {
+                emptyState.style.display = 'none';
+                const div = document.createElement('div');
+                div.className = `message ${isUser ? 'user' : 'assistant'}`;
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                if (!isUser) {
+                    div.innerHTML = `
+                            <div class="avatar">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                    <path d="M2 17l10 5 10-5" />
+                                    <path d="M2 12l10 5 10-5" />
+                                </svg>
+                            </div>
+                            <div class="bubble">
+                                ${escapeHtml(text)}
+                                <div class="message-footer">
+                                    <span class="timestamp">${timeStr}</span>
+                                    <button class="share-btn" onclick="shareMessage(this)" data-text="${escapeHtml(text)}">
+                                        <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="18" cy="5" r="3" />
+                                            <circle cx="6" cy="12" r="3" />
+                                            <circle cx="18" cy="19" r="3" />
+                                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                                        </svg>
+                                        Share
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                } else {
+                    div.innerHTML = `
+                            ${escapeHtml(text)}
+                            <span class="timestamp">${timeStr}</span>
+                        `;
+                }
+                chatArea.appendChild(div);
+                scrollToBottom();
+                state.messageCount++;
+            }
+
+            function addAssistantReply(text) {
+                emptyState.style.display = 'none';
+                const div = document.createElement('div');
+                div.className = 'message assistant';
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                const supportHtml = `
+                        <div class="support-info">
+                            <div class="row">
+                                <span class="label">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                                    </svg>
+                                    Customer Care
+                                </span>
+                                <a href="mailto:${CUSTOMER_EMAIL}">${CUSTOMER_EMAIL}</a>
+                            </div>
+                            <div class="row emergency-numbers">
+                                <span><strong>Nigeria</strong> 112 (general) · 199 (NEMA) · 767 (LASEMA)</span>
+                                <span><strong>USA</strong> 911</span>
+                            </div>
+                            <div class="row credit">Made by Hyacinth</div>
+                            <div class="row privacy-row">
+                                <a href="#" id="privacyLinkChat">Privacy Policy</a>
+                            </div>
+                        </div>
+                    `;
+
+                div.innerHTML = `
+                        <div class="avatar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                <path d="M2 17l10 5 10-5" />
+                                <path d="M2 12l10 5 10-5" />
+                            </svg>
+                        </div>
+                        <div class="bubble">
+                            ${escapeHtml(text)}
+                            <div class="message-footer">
+                                <span class="timestamp">${timeStr}</span>
+                                <button class="share-btn" onclick="shareMessage(this)" data-text="${escapeHtml(text)}">
+                                    <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="18" cy="5" r="3" />
+                                        <circle cx="6" cy="12" r="3" />
+                                        <circle cx="18" cy="19" r="3" />
+                                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                                    </svg>
+                                    Share
+                                </button>
+                            </div>
+                            ${supportHtml}
+                        </div>
+                    `;
+                chatArea.appendChild(div);
+                scrollToBottom();
+                state.messageCount++;
+
+                // Bind privacy link inside this message
+                const link = div.querySelector('#privacyLinkChat');
+                if (link) {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        openPrivacyPolicy();
+                    });
+                }
+            }
+
+            function addTypingIndicator() {
+                const div = document.createElement('div');
+                div.className = 'message assistant';
+                div.id = 'typing-indicator';
+                div.innerHTML = `
+                        <div class="avatar">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                <path d="M2 17l10 5 10-5" />
+                                <path d="M2 12l10 5 10-5" />
+                            </svg>
+                        </div>
+                        <div class="bubble">
+                            <div class="typing-indicator">
+                                <span></span><span></span><span></span>
+                            </div>
+                        </div>
+                    `;
+                chatArea.appendChild(div);
+                scrollToBottom();
+            }
+
+            function removeTypingIndicator() {
+                const typing = document.getElementById('typing-indicator');
+                if (typing) typing.remove();
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function scrollToBottom() {
+                setTimeout(() => { content.scrollTop = content.scrollHeight; }, 50);
+            }
+
+            window.shareMessage = function(btn) {
+                const text = btn.getAttribute('data-text');
+                if (navigator.share) {
+                    navigator.share({ title: 'Plexus Medical Advice', text: text }).catch(() => {});
+                } else {
+                    navigator.clipboard.writeText(text).then(() => {
+                        const original = btn.innerHTML;
+                        btn.innerHTML = 'Copied';
+                        setTimeout(() => { btn.innerHTML = original; }, 2000);
+                    }).catch(() => {});
+                }
+            };
+
+            /* =============================================================
+               9.  API – Mistral
+               ============================================================= */
+            async function callMistralText(userText, systemPrompt, useHistory = true) {
+                const messages = [];
+                if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+                if (useHistory) {
+                    const MAX_HISTORY = 6;
+                    const history = state.conversationHistory.slice(-MAX_HISTORY * 2);
+                    for (const entry of history) messages.push(entry);
+                }
+                messages.push({ role: 'user', content: userText });
+
+                const payload = {
+                    model: MISTRAL_TEXT_MODEL,
+                    messages: messages,
+                    temperature: 0.65,
+                    max_tokens: 2048,
+                };
+
+                const response = await fetch(MISTRAL_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${MISTRAL_API_KEY}`,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    let errorMsg = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error?.message || errorMsg;
+                    } catch (_) { /* ignore */ }
+                    throw new Error(errorMsg);
+                }
+
+                const data = await response.json();
+                const choice = data.choices?.[0];
+                if (!choice) throw new Error('No response choices.');
+                const content = choice.message?.content;
+                if (!content) throw new Error('No response content.');
+                return content;
+            }
+
+            async function callMistralVision(imageBase64, prompt) {
+                const contentParts = [
+                    { type: 'text', text: prompt },
+                    { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+                ];
+
+                const messages = [{
+                    role: 'system',
+                    content: `You are a drug identification expert. Output drug information in this exact format first:
+                        Drug: ...
+                        Active ingredient: ...
+                        Strength: ...
+                        Form: ...
+                        Manufacturer: ...
+                        NAFDAC status: ...
+                        Uses: ...
+                        Warnings: ...
+                        Common side effects: ...
+                        Interactions: ...
+                        Storage and drugs not to be taken: ...
+
+                        Then add additional medical advice. If not clearly identifiable, say so. Always remind the user that this is educational and not a substitute for professional medical advice.`
+                }, {
+                    role: 'user',
+                    content: contentParts
+                }];
+
+                const payload = {
+                    model: MISTRAL_VISION_MODEL,
+                    messages: messages,
+                    temperature: 0.4,
+                    max_tokens: 2048,
+                };
+
+                const response = await fetch(MISTRAL_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${MISTRAL_API_KEY}`,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    let errorMsg = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error?.message || errorMsg;
+                    } catch (_) { /* ignore */ }
+                    throw new Error(errorMsg);
+                }
+
+                const data = await response.json();
+                const choice = data.choices?.[0];
+                if (!choice) throw new Error('No response choices.');
+                const content = choice.message?.content;
+                if (!content) throw new Error('No response content.');
+                return content;
+            }
+
+            async function analyzeDrugWithPrompt(userText) {
+                if (state.isProcessing || !state.imageDataForApi) return;
+                state.isProcessing = true;
+                addTypingIndicator();
+
+                try {
+                    const prompt = userText && userText.trim().length > 0 ?
+                        userText.trim() :
+                        'Identify this drug and provide all relevant information. Please output the drug information in this exact format:\nDrug: ...\nActive ingredient: ...\nStrength: ...\nForm: ...\nManufacturer: ...\nNAFDAC status: ...\nUses: ...\nWarnings: ...\nCommon side effects: ...\nInteractions: ...\nStorage and drugs not to be taken: ...\n\nThen add any additional medical advice.';
+
+                    const responseText = await callMistralVision(state.imageDataForApi, prompt);
+                    removeTypingIndicator();
+                    addAssistantReply(responseText || 'Sorry, I could not identify the drug.');
+
+                    if (responseText) {
+                        state.conversationHistory.push({ role: 'user', content: prompt });
+                        state.conversationHistory.push({ role: 'assistant', content: responseText.slice(0, 300) +
+                                (responseText.length > 300 ? '…' : '') });
+                    }
+
+                    state.imageData = null;
+                    state.imageDataForApi = null;
+                    state.pendingImage = false;
+                    camBadge.classList.remove('show');
+                    searchInput.value = '';
+                    searchInput.placeholder = 'Search drug or symptom...';
+                    updateSendButton();
+                } catch (err) {
+                    removeTypingIndicator();
+                    addAssistantReply(`I'm sorry, I encountered an error: ${err.message || 'Unknown error'}. Please try again later.`);
+                    console.error('Mistral vision error:', err);
+                } finally {
+                    state.isProcessing = false;
+                }
+            }
+
+            async function sendMessageWithPrompt(text) {
+                if (state.pendingImage && state.imageDataForApi) {
+                    if (text && text.trim().length > 0) addTextMessage(text, true);
+                    else addTextMessage('Identify this drug', true);
+                    searchInput.value = '';
+                    updateSendButton();
+                    await analyzeDrugWithPrompt(text);
+                    return;
+                }
+
+                if (!text || text.trim().length === 0) return;
+                addTextMessage(text, true);
+                state.conversationHistory.push({ role: 'user', content: text.trim() });
+
+                searchInput.value = '';
+                updateSendButton();
+
+                state.isProcessing = true;
+                addTypingIndicator();
+
+                try {
+                    const systemPrompt = `
+                            You are Plexus, a compassionate, medically trained first‑aid and drug‑confirmation assistant. Your responses must be clear, structured, and cautious.
+
+                            **1. DRUG CONFIRMATION (when a name is given):**
+                            - Always ask: "Was this prescribed by a physician?"
+                            - Provide a clear breakdown in bullet points.
+
+                            **2. FIRST AID FOR SYMPTOMS:**
+                            - Ask clarifying questions.
+                            - Provide step‑by‑step first‑aid instructions.
+                            - Always include: "This is not a substitute for professional medical care."
+
+                            **3. GENERAL GUIDELINES:**
+                            - Speak in plain language.
+                            - Keep responses under 500 words.
+                            - End with a caring reminder.
+                        `.trim();
+
+                    const responseText = await callMistralText(text.trim(), systemPrompt, true);
+                    removeTypingIndicator();
+                    addAssistantReply(responseText || 'No response received.');
+
+                    if (responseText) {
+                        state.conversationHistory.push({ role: 'assistant', content: responseText });
+                    }
+                } catch (err) {
+                    removeTypingIndicator();
+                    addAssistantReply(`I'm sorry, I encountered an error: ${err.message || 'Unknown error'}. Please try again later.`);
+                    console.error('Mistral text error:', err);
+                } finally {
+                    state.isProcessing = false;
+                }
+            }
+
+            /* =============================================================
+               10. EMERGENCY OVERLAY
+               ============================================================= */
+            const emergencies = [
+                { id: 'heart_attack', label: 'Heart Attack' },
+                { id: 'stroke', label: 'Stroke' },
+                { id: 'severe_bleeding', label: 'Severe Bleeding' },
+                { id: 'choking', label: 'Choking' },
+                { id: 'allergic_reaction', label: 'Severe Allergic Reaction' },
+                { id: 'seizure', label: 'Seizure' },
+                { id: 'burn', label: 'Burns' },
+                { id: 'fracture', label: 'Fracture or Broken Bone' },
+                { id: 'poisoning', label: 'Poisoning' },
+                { id: 'drowning', label: 'Drowning' },
+                { id: 'diabetic_emergency', label: 'Diabetic Emergency' },
+                { id: 'panic_attack', label: 'Panic Attack' },
+            ];
+
+            function renderEmergencyList() {
+                emergencyList.innerHTML = '';
+                emergencies.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'emergency-item';
+                    div.innerHTML = `
+                            <span class="item-index">${String(index + 1).padStart(2, '0')}</span>
+                            <span class="item-label">${item.label}</span>
+                            <span class="item-arrow">→</span>
+                        `;
+                    div.dataset.id = item.id;
+                    div.dataset.label = item.label;
+                    div.addEventListener('click', () => onEmergencySelect(item));
+                    emergencyList.appendChild(div);
+                });
+            }
+
+            async function onEmergencySelect(item) {
+                if (state.isEmergencyLoading) return;
+                state.isEmergencyLoading = true;
+
+                emergencyList.style.display = 'none';
+                emergencyDetail.classList.add('active');
+                emergencyResponse.innerHTML = `
+                        <div class="emergency-loading">
+                            <div class="spinner"></div>
+                            <div>Loading instructions...</div>
+                        </div>
+                    `;
+
+                try {
+                    const systemPrompt = `
+                            You are a first‑aid expert. Provide clear, step‑by‑step emergency instructions for the given condition. Be practical, calm, and direct. Include:
+                            - Immediate actions (what to do right away)
+                            - What to monitor (signs to watch for)
+                            - When to call emergency services (specific red flags)
+                            - Warning signs that indicate worsening
+
+                            Format your response with clear sections using bullet points and numbered steps. Keep it concise and easy to follow. This is for educational purposes only and does not replace professional medical care.
+                        `.trim();
+
+                    const response = await callMistralText(
+                        `Provide step‑by‑step first‑aid instructions for a person experiencing ${item.label}.`,
+                        systemPrompt,
+                        false
+                    );
+                    emergencyResponse.textContent = response;
+                } catch (err) {
+                    emergencyResponse.textContent =
+                        `Sorry, I couldn't fetch instructions: ${err.message || 'Unknown error'}. Please try again.`;
+                } finally {
+                    state.isEmergencyLoading = false;
+                }
+            }
+
+            function resetEmergencyOverlay() {
+                emergencyList.style.display = 'flex';
+                emergencyDetail.classList.remove('active');
+                emergencyResponse.textContent = 'Select an emergency to get first‑aid instructions.';
+            }
+
+            function toggleEmergencyOverlay(show) {
+                if (show) { emergencyOverlay.classList.add('active');
+                    resetEmergencyOverlay(); } else { emergencyOverlay.classList.remove('active'); }
+            }
+
+            /* =============================================================
+               11. PRIVACY POLICY
+               ============================================================= */
+            const PRIVACY_HTML = `
+                <h1>PLEXUS</h1>
+                <div class="subhead">PRIVACY POLICY · Last Updated: September 7, 2026 · Effective Date: September 7, 2026</div>
+
+                <h2>WELCOME TO PLEXUS</h2>
+                <p>Plexus is an online medication-information, drug-confirmation, and first-aid assistance platform designed to help users understand medicines and access general educational first-aid information.</p>
+                <p>This Privacy Policy explains how Plexus may collect, use, store, protect, and disclose information when you use the Plexus website, application, features, and related services (collectively, the "Service").</p>
+                <div class="highlight-box"><strong>PLEASE READ THIS PRIVACY POLICY CAREFULLY.</strong><br />By accessing or using Plexus, you acknowledge that you have read and understood this Privacy Policy. If you do not agree with this Privacy Policy, please do not use the Service.</div>
+
+                <h2>IMPORTANT MEDICAL NOTICE</h2>
+                <p>Plexus provides educational and informational assistance. It is not a doctor, hospital, pharmacist, emergency medical service, or substitute for professional medical advice, diagnosis, or treatment.</p>
+                <p>Information generated by artificial intelligence may be incomplete, inaccurate, outdated, or inappropriate for a particular person.</p>
+                <p>Drug identification should never be treated as certain solely because Plexus identifies a medicine.</p>
+                <p>For emergencies or potentially life-threatening symptoms, contact appropriate emergency services or seek immediate professional medical care.</p>
+                <p><strong>Do not delay emergency care because you are waiting for a response from Plexus.</strong></p>
+
+                <h2>1. WHO WE ARE</h2>
+                <p>Plexus is a digital platform intended to provide users with educational medication and first-aid information.</p>
+                <p>In this Privacy Policy, "Plexus," "we," "us," and "our" refer to the operator of the Plexus Service.</p>
+                <p>"User," "you," and "your" refer to any person who accesses or uses the Service.</p>
+                <p>If Plexus is later operated by a registered company or other legal entity, this Privacy Policy may be updated to identify that entity and provide its official contact details.</p>
+
+                <h2>2. INFORMATION WE MAY COLLECT</h2>
+                <p>Depending on how you use Plexus, we may collect or receive several categories of information.</p>
+
+                <h3>2.1 ACCOUNT INFORMATION</h3>
+                <p>If you create an account, we may collect information such as:</p>
+                <ul>
+                    <li>Name or display name</li>
+                    <li>Email address</li>
+                    <li>Password or authentication credentials, where applicable</li>
+                    <li>Account identifier</li>
+                    <li>Authentication and session information</li>
+                    <li>Subscription or account status</li>
+                </ul>
+
+                <h3>2.2 INFORMATION YOU PROVIDE DURING USE</h3>
+                <p>You may voluntarily provide information through conversations, forms, or other features, including:</p>
+                <ul>
+                    <li>Questions you submit to Plexus</li>
+                    <li>Text describing symptoms or situations</li>
+                    <li>Medication-related questions</li>
+                    <li>First-aid questions</li>
+                    <li>Information you choose to include about medicines</li>
+                    <li>Feedback</li>
+                    <li>Support requests</li>
+                    <li>Other communications you voluntarily submit</li>
+                </ul>
+                <p><em>Please avoid entering unnecessary personal information into Plexus conversations.</em></p>
+
+                <h3>2.3 MEDICATION AND IMAGE INFORMATION</h3>
+                <p>Plexus may allow you to photograph, upload, or submit an image of a medicine, medication package, label, or related item for drug-identification and educational purposes.</p>
+                <p>Depending on the feature used, the submitted image may be processed by Plexus and/or third-party artificial-intelligence services to generate an answer.</p>
+                <p>Medication images can potentially contain sensitive information.</p>
+                <p>For your own privacy, avoid submitting photographs that unnecessarily show:</p>
+                <ul>
+                    <li>Your full name</li>
+                    <li>Home address</li>
+                    <li>Telephone number</li>
+                    <li>Medical records</li>
+                    <li>Prescription numbers</li>
+                    <li>Patient identification numbers</li>
+                    <li>Insurance information</li>
+                    <li>Other unrelated personal information</li>
+                </ul>
+
+                <h3>2.4 TECHNICAL AND USAGE INFORMATION</h3>
+                <p>When you use Plexus, certain technical information may be automatically collected by the website, hosting provider, authentication provider, security systems, analytics systems, or other service providers.</p>
+                <p>This may include:</p>
+                <ul>
+                    <li>IP address</li>
+                    <li>Browser type</li>
+                    <li>Device type</li>
+                    <li>Operating system</li>
+                    <li>Approximate location derived from technical information</li>
+                    <li>Pages or features accessed</li>
+                    <li>Date and time of activity</li>
+                    <li>Referring pages</li>
+                    <li>Error and diagnostic information</li>
+                    <li>Security and fraud-prevention information</li>
+                </ul>
+
+                <h3>2.5 PAYMENT AND SUBSCRIPTION INFORMATION</h3>
+                <p>If Plexus offers paid subscriptions, payments may be processed by third-party payment providers such as Stripe.</p>
+                <p>Plexus does not intend to store your complete payment-card number, card security code, or other sensitive card credentials on its own servers.</p>
+                <p>Payment providers may collect and process payment information under their own privacy policies and terms.</p>
+                <p>Plexus may receive limited transaction information necessary to manage subscriptions, such as:</p>
+                <ul>
+                    <li>Customer identifier</li>
+                    <li>Subscription identifier</li>
+                    <li>Payment status</li>
+                    <li>Subscription status</li>
+                    <li>Product or price selected</li>
+                    <li>Transaction dates</li>
+                    <li>Limited billing information provided by the payment provider</li>
+                </ul>
+
+                <h3>2.6 COMMUNICATIONS</h3>
+                <p>If you contact Plexus, we may collect the information contained in your message and any information reasonably necessary to respond to you.</p>
+                <p><em>Please do not send highly sensitive medical information through ordinary email unless specifically requested through an appropriate secure channel.</em></p>
+
+                <h2>3. HOW WE USE INFORMATION</h2>
+                <p>We may use information for purposes including:</p>
+                <ul>
+                    <li>Providing and operating Plexus</li>
+                    <li>Creating and managing user accounts</li>
+                    <li>Authenticating users</li>
+                    <li>Providing medication-information responses</li>
+                    <li>Providing first-aid information</li>
+                    <li>Processing submitted medicine images</li>
+                    <li>Maintaining subscription access</li>
+                    <li>Processing payments through payment providers</li>
+                    <li>Preventing fraud and abuse</li>
+                    <li>Preventing unauthorized access</li>
+                    <li>Monitoring and improving system performance</li>
+                    <li>Troubleshooting technical problems</li>
+                    <li>Improving user experience</li>
+                    <li>Developing new features</li>
+                    <li>Communicating with users about the Service</li>
+                    <li>Responding to support requests</li>
+                    <li>Enforcing our terms and policies</li>
+                    <li>Complying with applicable laws</li>
+                    <li>Protecting the rights, safety, security, and property of Plexus and its users</li>
+                </ul>
+
+                <h2>4. ARTIFICIAL INTELLIGENCE AND THIRD-PARTY PROCESSING</h2>
+                <p>Plexus may use third-party artificial-intelligence services to process certain user requests.</p>
+                <p>For example, a user may submit a question or medicine image and Plexus may send relevant information to an AI service so that a response can be generated.</p>
+                <p>AI processing may include:</p>
+                <ul>
+                    <li>Text submitted by the user</li>
+                    <li>Information necessary to understand a question</li>
+                    <li>Images submitted for medication analysis</li>
+                    <li>Conversation context necessary to generate a response</li>
+                </ul>
+                <p>Plexus may limit or minimize the information sent to third-party AI providers where technically practical.</p>
+                <p>Because third-party providers may have their own privacy policies, security practices, retention periods, and terms, users should review the applicable policies of those providers.</p>
+                <p><strong>Plexus does not guarantee that AI-generated information is accurate, complete, current, or suitable for a particular medical situation.</strong></p>
+
+                <h2>5. CONVERSATION DATA</h2>
+                <p>Plexus may process conversations so that the Service can respond to users and maintain the context of an interaction.</p>
+                <p>Depending on the current technical implementation, some conversation information may be temporarily maintained in application memory, browser storage, databases, logs, or third-party service systems.</p>
+                <p>Plexus may change its storage architecture as the Service develops.</p>
+                <p>Where conversation history is stored, it should be used only for legitimate Service purposes such as providing requested functionality, improving reliability, security, and user experience, or complying with legal obligations.</p>
+                <p><em>Users should not submit highly sensitive information unless it is necessary for the feature being used.</em></p>
+
+                <h2>6. MEDICAL AND HEALTH-RELATED INFORMATION</h2>
+                <p>Plexus may receive information that relates to medicines, symptoms, first-aid situations, or other health-related topics.</p>
+                <p>We recognize that health-related information can be sensitive.</p>
+                <p>We aim to:</p>
+                <ul>
+                    <li>Collect only information reasonably necessary for the Service</li>
+                    <li>Use reasonable technical and organizational safeguards</li>
+                    <li>Limit access where practical</li>
+                    <li>Avoid unnecessary collection of sensitive information</li>
+                    <li>Use information for legitimate Service purposes</li>
+                </ul>
+                <p>However, no online service can guarantee absolute security or absolute confidentiality.</p>
+                <p>Plexus is an educational technology platform and should not be treated as a medical-record system.</p>
+
+                <h2>7. DRUG IDENTIFICATION AND VERIFICATION</h2>
+                <p>Plexus may provide features that analyze photographs or descriptions of medicines.</p>
+                <p>A drug-identification result is an AI-assisted estimate unless and until it is independently verified through an authoritative source.</p>
+                <p>Plexus may provide information such as:</p>
+                <ul>
+                    <li>Possible medicine name</li>
+                    <li>Active ingredient</li>
+                    <li>Strength</li>
+                    <li>Dosage form</li>
+                    <li>Manufacturer</li>
+                    <li>General uses</li>
+                    <li>Warnings</li>
+                    <li>Common side effects</li>
+                    <li>Potential interactions</li>
+                    <li>Storage information</li>
+                    <li>Regulatory or registration information, where available</li>
+                </ul>
+                <p><strong>Plexus does not guarantee that every result is correct.</strong></p>
+                <p>Users should verify important medication information with a qualified pharmacist, physician, regulatory authority, product packaging, or other authoritative source.</p>
+                <p><strong>Never take, stop, change, or combine medication solely because of an AI-generated response.</strong></p>
+
+                <h2>8. FIRST-AID AND EMERGENCY INFORMATION</h2>
+                <p>Plexus may provide general first-aid guidance for situations such as:</p>
+                <ul>
+                    <li>Severe bleeding</li>
+                    <li>Choking</li>
+                    <li>Burns</li>
+                    <li>Allergic reactions</li>
+                    <li>Seizures</li>
+                    <li>Drowning</li>
+                    <li>Fractures</li>
+                    <li>Poisoning</li>
+                    <li>Diabetic emergencies</li>
+                    <li>Panic attacks</li>
+                    <li>Other emergency situations</li>
+                </ul>
+                <p>Such information is educational and may not account for the specific circumstances of an emergency.</p>
+                <p><strong>Plexus is not an emergency-response service and cannot physically assist a user.</strong></p>
+                <p>In an emergency, users should contact the appropriate local emergency service and/or seek immediate professional medical assistance.</p>
+                <p><strong>Do not delay emergency care because you are waiting for a response from Plexus.</strong></p>
+
+                <h2>9. LEGAL BASES AND PURPOSE LIMITATION</h2>
+                <p>Where applicable law requires a legal basis for processing personal information, Plexus may rely on one or more appropriate legal bases, including:</p>
+                <ul>
+                    <li>Performance of a contract or provision of requested services</li>
+                    <li>User consent</li>
+                    <li>Legitimate interests, where permitted</li>
+                    <li>Compliance with legal obligations</li>
+                    <li>Protection of vital interests, where legally applicable</li>
+                </ul>
+
+                <h2>10. DATA SHARING AND DISCLOSURE</h2>
+                <p>We do not intend to sell personal information simply for the purpose of selling users' personal information.</p>
+                <p>We may share information with trusted third-party service providers where necessary to operate Plexus.</p>
+                <p>These may include providers for:</p>
+                <ul>
+                    <li>Authentication</li>
+                    <li>Database hosting</li>
+                    <li>Cloud infrastructure</li>
+                    <li>Artificial intelligence</li>
+                    <li>Payment processing</li>
+                    <li>Website hosting</li>
+                    <li>Security</li>
+                    <li>Analytics</li>
+                    <li>Error monitoring</li>
+                    <li>Communications</li>
+                    <li>Technical support</li>
+                </ul>
+                <p>We may also disclose information:</p>
+                <ul>
+                    <li>When required by law</li>
+                    <li>In response to valid legal process</li>
+                    <li>To protect users or the public from serious harm</li>
+                    <li>To investigate fraud, abuse, or security incidents</li>
+                    <li>To enforce our agreements</li>
+                    <li>To protect Plexus's legal rights</li>
+                    <li>In connection with a merger, acquisition, financing, restructuring, or sale of assets, subject to applicable law</li>
+                </ul>
+                <p>We do not authorize third parties to use Plexus user information for purposes unrelated to the services they provide to Plexus except where permitted or required by law.</p>
+
+                <h2>11. STRIPE AND PAYMENTS</h2>
+                <p>If you purchase Plexus Plus or another paid service, Stripe or another payment processor may process your payment.</p>
+                <p>Payment information is subject to the payment processor's own policies and security practices.</p>
+                <p>Plexus may use payment-related information to:</p>
+                <ul>
+                    <li>Confirm payment</li>
+                    <li>Activate a subscription</li>
+                    <li>Maintain subscription status</li>
+                    <li>Process refunds where applicable</li>
+                    <li>Detect payment problems</li>
+                    <li>Prevent fraud</li>
+                    <li>Manage billing-related support</li>
+                </ul>
+                <p>Plexus does not intend to have access to your full card credentials.</p>
+
+                <h2>12. COOKIES AND LOCAL STORAGE</h2>
+                <p>Plexus and its service providers may use cookies, local storage, session storage, or similar technologies.</p>
+                <p>These technologies may be used for purposes such as:</p>
+                <ul>
+                    <li>Authentication</li>
+                    <li>Maintaining sessions</li>
+                    <li>Remembering preferences</li>
+                    <li>Security</li>
+                    <li>Performance</li>
+                    <li>Basic analytics</li>
+                    <li>Feature functionality</li>
+                </ul>
+                <p>You can usually control cookies through your browser settings.</p>
+                <p>Disabling certain technologies may cause some Plexus features to stop working properly.</p>
+
+                <h2>13. DATA RETENTION</h2>
+                <p>We retain information only for as long as reasonably necessary for the purposes described in this Privacy Policy, unless a longer period is required or permitted by law.</p>
+                <p>Retention periods may depend on:</p>
+                <ul>
+                    <li>The type of information</li>
+                    <li>Why it was collected</li>
+                    <li>Whether an account remains active</li>
+                    <li>Legal and regulatory requirements</li>
+                    <li>Security and fraud-prevention needs</li>
+                    <li>Technical requirements</li>
+                    <li>Dispute resolution</li>
+                </ul>
+                <p>When information is no longer required, we may delete, anonymize, or securely dispose of it where reasonably practical.</p>
+
+                <h2>14. DATA SECURITY</h2>
+                <p>We use reasonable technical and organizational measures intended to protect information against unauthorized access, loss, misuse, alteration, or disclosure.</p>
+                <p>Security measures may include:</p>
+                <ul>
+                    <li>Encrypted connections</li>
+                    <li>Authentication controls</li>
+                    <li>Access restrictions</li>
+                    <li>Secure backend processing</li>
+                    <li>Secret-key protection</li>
+                    <li>Monitoring and abuse prevention</li>
+                    <li>Database security controls</li>
+                    <li>Regular software and configuration improvements</li>
+                </ul>
+                <p>However, no Internet transmission, computer system, database, or electronic storage method is completely secure.</p>
+                <p><strong>You use Plexus at your own risk.</strong></p>
+
+                <h2>15. API KEYS AND SECURITY ARCHITECTURE</h2>
+                <p>Plexus may use third-party APIs to provide AI, payment, authentication, or other functionality.</p>
+                <p>Secret API credentials should be stored in secure server-side environments and should not be exposed in public frontend code.</p>
+                <p>Plexus may update its architecture, credentials, integrations, and security controls as the Service develops.</p>
+
+                <h2>16. YOUR PRIVACY RIGHTS</h2>
+                <p>Depending on your location and applicable law, you may have rights concerning your personal information.</p>
+                <p>These may include the right to:</p>
+                <ul>
+                    <li>Request access to certain personal information</li>
+                    <li>Request correction of inaccurate information</li>
+                    <li>Request deletion of certain information</li>
+                    <li>Request restriction of certain processing</li>
+                    <li>Object to certain processing</li>
+                    <li>Withdraw consent where processing is based on consent</li>
+                    <li>Request a copy of certain information</li>
+                    <li>Complain to an applicable data-protection authority</li>
+                </ul>
+                <p>These rights may be subject to legal limitations and exceptions.</p>
+                <p>To request assistance regarding your information, contact Plexus using the contact details provided in Section 22.</p>
+
+                <h2>17. NIGERIAN DATA PROTECTION</h2>
+                <p>Where applicable, Plexus intends to handle personal information in accordance with applicable Nigerian data-protection requirements, including the Nigeria Data Protection Act and applicable guidance or regulations.</p>
+                <p>If Plexus becomes subject to additional data-protection obligations because of its operations, users, or geographic reach, we may update our policies and procedures accordingly.</p>
+                <p>Users located outside Nigeria may also have additional rights under the laws applicable to them.</p>
+
+                <h2>18. INTERNATIONAL DATA TRANSFERS</h2>
+                <p>Plexus may use service providers located in countries other than the country where you live.</p>
+                <p>As a result, information may be processed or stored internationally.</p>
+                <p>Where applicable law requires safeguards for international transfers, Plexus intends to use appropriate safeguards or rely on legally recognized transfer mechanisms.</p>
+
+                <h2>19. CHILDREN'S PRIVACY</h2>
+                <p>Plexus is not intended to encourage children to independently make medical decisions.</p>
+                <p>Users should not use Plexus as a substitute for a parent, guardian, physician, pharmacist, or other qualified professional.</p>
+                <p>If you believe a child has provided personal information to Plexus in circumstances where such collection was not appropriate, please contact us so that we can review the situation and take appropriate action where required by law.</p>
+
+                <h2>20. THIRD-PARTY LINKS AND SERVICES</h2>
+                <p>Plexus may contain links to third-party websites, applications, services, pharmacies, healthcare providers, payment processors, or other resources.</p>
+                <p>We are not responsible for the privacy practices, security, content, or policies of third parties.</p>
+                <p>Your interactions with third-party services are governed by their own terms and privacy policies.</p>
+
+                <h2>21. YOUR RESPONSIBILITIES</h2>
+                <p>To protect your own privacy, you should:</p>
+                <ul>
+                    <li>Avoid submitting unnecessary personal information</li>
+                    <li>Do not upload documents containing unrelated sensitive information</li>
+                    <li>Do not share passwords or authentication credentials</li>
+                    <li>Keep your account credentials secure</li>
+                    <li>Verify important medical information independently</li>
+                    <li>Seek professional medical care when appropriate</li>
+                    <li>Do not use Plexus as an emergency-response service</li>
+                    <li>Log out of shared devices</li>
+                    <li>Notify us if you suspect unauthorized account activity</li>
+                </ul>
+
+                <h2>22. CONTACT US</h2>
+                <p>If you have questions, concerns, privacy requests, security concerns, or requests regarding your personal information, please contact Plexus through the official contact method provided on the Plexus website.</p>
+                <p><strong>CONTACT EMAIL:</strong> <a href="mailto:${CUSTOMER_EMAIL}" style="color:#D4AF37;">${CUSTOMER_EMAIL}</a></p>
+                <p><strong>WEBSITE:</strong> Plexus Medical First Aid</p>
+                <p><strong>BUSINESS / OPERATOR NAME:</strong> Plexus Health Tech</p>
+                <p><em>Please do not send highly sensitive medical information by ordinary email unless specifically requested through an appropriate secure channel.</em></p>
+
+                <h2>23. CHANGES TO THIS PRIVACY POLICY</h2>
+                <p>We may update this Privacy Policy from time to time.</p>
+                <p>When we make changes, we may update the "Last Updated" date at the beginning of this document.</p>
+                <p>For significant changes, we may provide additional notice where required by law.</p>
+                <p>Your continued use of Plexus after an updated Privacy Policy becomes effective means that you acknowledge the updated policy, subject to applicable legal requirements.</p>
+
+                <h2>24. SEVERABILITY</h2>
+                <p>If any provision of this Privacy Policy is determined to be invalid, unlawful, or unenforceable, the remaining provisions will continue to apply to the extent permitted by law.</p>
+
+                <h2>25. GOVERNING LAW</h2>
+                <p>Unless applicable law requires otherwise, this Privacy Policy and the privacy practices described in it are intended to be governed by the laws applicable to the operator of Plexus.</p>
+                <p>Where mandatory consumer or data-protection laws in your jurisdiction provide additional rights, those rights are not intended to be excluded.</p>
+
+                <h2>26. NO GUARANTEE OF SECURITY</h2>
+                <p>Although Plexus takes reasonable steps to protect information, we cannot guarantee that:</p>
+                <ul>
+                    <li>Your information will never be accessed without authorization</li>
+                    <li>The Service will never experience a security incident</li>
+                    <li>Third-party providers will never experience a security incident</li>
+                    <li>Data transmission over the Internet will always be secure</li>
+                    <li>Information will never be lost because of technical failure</li>
+                </ul>
+                <p>If we become aware of a security incident requiring notification under applicable law, we will take reasonable steps to investigate, contain, and respond to it and provide required notifications.</p>
+
+                <h2>27. DATA MINIMIZATION</h2>
+                <p>Plexus aims to collect and process only information reasonably necessary for providing, securing, improving, and supporting the Service.</p>
+                <p>We encourage users to follow the same principle.</p>
+                <p>If a feature does not require your full identity, contact details, medical history, or other sensitive information, do not provide it unnecessarily.</p>
+
+                <h2>28. AI TRAINING AND SERVICE IMPROVEMENT</h2>
+                <p>Unless clearly stated otherwise in an applicable product notice or consent flow, Plexus does not promise that user-provided information will be used to train a third-party AI model.</p>
+                <p>Third-party AI providers may have their own policies regarding data retention and model improvement.</p>
+                <p>Plexus may use aggregated, anonymized, or de-identified information for purposes such as:</p>
+                <ul>
+                    <li>Understanding feature usage</li>
+                    <li>Improving reliability</li>
+                    <li>Detecting abuse</li>
+                    <li>Measuring performance</li>
+                    <li>Developing new features</li>
+                    <li>Improving the overall Service</li>
+                </ul>
+                <p>Where information is anonymized or de-identified, Plexus will seek to prevent it from being reasonably associated with an identifiable individual.</p>
+
+                <h2>29. ADVERTISING AND SPONSORSHIP</h2>
+                <p>If Plexus introduces advertising or sponsorship in the future, this Privacy Policy may be updated to describe relevant practices.</p>
+                <p>Plexus intends to distinguish sponsored content from independent educational or informational content.</p>
+                <p>Advertisers and sponsors should not be permitted to alter an individual user's medical or first-aid response.</p>
+
+                <h2>30. BUSINESS TRANSFERS</h2>
+                <p>If Plexus is involved in a merger, acquisition, investment, restructuring, bankruptcy, sale of assets, or similar transaction, personal information may be transferred as part of that transaction where legally permitted.</p>
+                <p>Any successor organization may be required to continue honoring applicable privacy obligations.</p>
+
+                <h2>31. YOUR CONSENT</h2>
+                <p>By using Plexus, you acknowledge that you have read this Privacy Policy.</p>
+                <p>Where consent is legally required for a particular processing activity, Plexus will seek consent through an appropriate mechanism.</p>
+                <p>You may withdraw consent where applicable, although doing so may affect your ability to use certain features.</p>
+
+                <h2>32. IMPORTANT LIMITATION</h2>
+                <p>This Privacy Policy describes intended privacy practices and should not be interpreted as a guarantee that every technical implementation currently used by Plexus operates exactly as described in every circumstance.</p>
+                <p>As Plexus grows, its technology, vendors, payment providers, analytics systems, hosting infrastructure, and data practices may change.</p>
+                <p>This Privacy Policy should therefore be reviewed and updated whenever a material change is made to the Service.</p>
+
+                <h2>33. SUMMARY</h2>
+                <p>In simple terms:</p>
+                <ul>
+                    <li>Plexus may collect account, technical, usage, conversation, and medication-related information depending on how you use the Service.</li>
+                    <li>Medicine images may be processed to provide drug-identification assistance.</li>
+                    <li>AI services may process information necessary to answer requests.</li>
+                    <li>Payment providers such as Stripe may process payment information for subscriptions.</li>
+                    <li>We aim to protect information using reasonable security measures.</li>
+                    <li>We do not intend to sell personal information simply as a data-selling business.</li>
+                    <li>We may share information with service providers necessary to operate Plexus.</li>
+                    <li>You may have legal rights to access, correct, delete, or otherwise control certain information.</li>
+                    <li>Plexus is an educational tool and not a replacement for professional medical care.</li>
+                    <li>AI-generated medical information may be wrong. Always verify important medication information with an appropriate qualified professional or authoritative source.</li>
+                    <li>In an emergency, seek immediate professional help rather than relying on Plexus.</li>
+                </ul>
+
+                <div class="small-meta">
+                    END OF PRIVACY POLICY
+                </div>
+                <div class="tagline">
+                    PLEXUS · "Understand your medicine. Know what to do next."
+                </div>
+            `;
+
+            function openPrivacyPolicy() {
+                privacyBody.innerHTML = PRIVACY_HTML;
+                privacyOverlay.classList.add('active');
+                // Re-bind email link if present
+                const emailLink = privacyBody.querySelector('a[href^="mailto:"]');
+                if (emailLink) emailLink.href = `mailto:${CUSTOMER_EMAIL}`;
+                // Re-bind any other links inside (keep them as normal links)
+                privacyOverlay.scrollTop = 0;
+            }
+
+            function closePrivacyPolicy() {
+                privacyOverlay.classList.remove('active');
+            }
+
+            /* =============================================================
+               12. UI HELPERS
+               ============================================================= */
+            function updateSendButton() {
+                const hasText = searchInput.value.trim().length > 0;
+                const hasImage = state.pendingImage && state.imageDataForApi;
+                if (hasText || hasImage) {
+                    btnSend.classList.add('active');
+                } else {
+                    btnSend.classList.remove('active');
+                }
+            }
+
+            function handleSend() {
+                if (state.isProcessing) return;
+                const text = searchInput.value.trim();
+                if (state.pendingImage && state.imageDataForApi) {
+                    sendMessageWithPrompt(text);
+                    return;
+                }
+                if (text) sendMessageWithPrompt(text);
+            }
+
+            function resizeWingCanvas() {
+                const rect = wingCanvas.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                const w = rect.width * dpr;
+                const h = rect.height * dpr;
+                if (wingCanvas.width !== w || wingCanvas.height !== h) {
+                    wingCanvas.width = w;
+                    wingCanvas.height = h;
+                    if (!state.wingAnimId) drawWing(state.wingAngle);
+                }
+            }
+
+            /* =============================================================
+               13. EVENT BINDING
+               ============================================================= */
+            function init() {
+                startLoadingAnimation();
+
+                // Auth toggle
+                document.querySelectorAll('.auth-toggle button').forEach(btn => {
+                    btn.addEventListener('click', () => setAuthMode(btn.dataset.mode));
+                });
+
+                authForm.addEventListener('submit', handleAuthSubmit);
+                setAuthMode('login');
+
+                logoutBtn.addEventListener('click', handleLogout);
+
+                btnCamera.addEventListener('click', () => {
+                    if (cameraOverlay.classList.contains('active')) closeCamera();
+                    else openCamera();
+                });
+
+                btnIdentify.addEventListener('click', captureAndIdentify);
+                btnCloseCam.addEventListener('click', closeCamera);
+                btnSend.addEventListener('click', handleSend);
+
+                searchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault();
+                        handleSend(); }
+                });
+                searchInput.addEventListener('input', updateSendButton);
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && cameraOverlay.classList.contains('active')) closeCamera();
+                    if (e.key === 'Escape' && emergencyOverlay.classList.contains('active')) toggleEmergencyOverlay(
+                        false);
+                    if (e.key === 'Escape' && privacyOverlay.classList.contains('active')) closePrivacyPolicy();
+                });
+
+                logoEmergencyBtn.addEventListener('click', () => toggleEmergencyOverlay(true));
+                emergencyCloseBtn.addEventListener('click', () => toggleEmergencyOverlay(false));
+                emergencyBackBtn.addEventListener('click', resetEmergencyOverlay);
+
+                // Privacy links
+                privacyCloseBtn.addEventListener('click', closePrivacyPolicy);
+                privacyLinkAuth.addEventListener('click', (e) => { e.preventDefault();
+                    openPrivacyPolicy(); });
+
+                // Also listen for clicks on the privacy link inside assistant messages (delegated)
+                document.addEventListener('click', function(e) {
+                    const target = e.target.closest('#privacyLinkChat');
+                    if (target) {
+                        e.preventDefault();
+                        openPrivacyPolicy();
+                    }
+                });
+
+                renderEmergencyList();
+
+                window.addEventListener('resize', resizeWingCanvas);
+                setTimeout(resizeWingCanvas, 100);
+
+                // Paste & drag-drop
+                document.addEventListener('paste', (e) => {
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+                    for (const item of items) {
+                        if (item.type.startsWith('image/')) {
+                            const file = item.getAsFile();
+                            if (!file) continue;
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                                const dataURL = ev.target.result;
+                                const base64 = dataURL.split(',')[1];
+                                state.imageData = dataURL;
+                                state.imageDataForApi = base64;
+                                addImageMessage(dataURL);
+                                camBadge.classList.add('show');
+                                camBadge.textContent = '1';
+                                state.pendingImage = true;
+                                searchInput.placeholder = 'Ask about this drug...';
+                                searchInput.focus();
+                                updateSendButton();
+                            };
+                            reader.readAsDataURL(file);
+                            break;
+                        }
+                    }
+                });
+
+                document.addEventListener('dragover', (e) => e.preventDefault());
+                document.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    const files = e.dataTransfer?.files;
+                    if (!files) return;
+                    for (const file of files) {
+                        if (file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                                const dataURL = ev.target.result;
+                                const base64 = dataURL.split(',')[1];
+                                state.imageData = dataURL;
+                                state.imageDataForApi = base64;
+                                addImageMessage(dataURL);
+                                camBadge.classList.add('show');
+                                camBadge.textContent = '1';
+                                state.pendingImage = true;
+                                searchInput.placeholder = 'Ask about this drug...';
+                                searchInput.focus();
+                                updateSendButton();
+                            };
+                            reader.readAsDataURL(file);
+                            break;
+                        }
+                    }
+                });
+
+                updateSendButton();
+                checkSession();
+
+                console.log('✅ Plexus — Drug Confirmation & First Aid (Supabase Auth + Mistral)');
+                console.log(`📧 Customer Care: ${CUSTOMER_EMAIL}`);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+
+        })();
+    </script>
+
+</body>
+</html>
